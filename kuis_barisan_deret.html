@@ -1,0 +1,1066 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kuis Barisan dan Deret Interaktif</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8;
+            color: #1a202c;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        .page { transition: opacity 0.5s ease-in-out; }
+        .card {
+            background-color: #ffffff;
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 2rem;
+            transition: all 0.3s ease-in-out;
+        }
+        .quiz-card { cursor: pointer; position: relative; overflow: hidden; }
+        .quiz-card:hover { transform: translateY(-5px); box-shadow: 0 8px 15px rgba(0,0,0,0.1); }
+        .check-mark { position: absolute; top: 10px; right: 10px; font-size: 2rem; color: #38a169; opacity: 0; transform: scale(0.5); transition: all 0.3s ease-out; }
+        .quiz-card.completed .check-mark { opacity: 1; transform: scale(1); }
+        .math-text { font-size: 1.1rem; transition: color 0.3s ease; }
+        .option-button { display: flex; align-items: center; gap: 0.75rem; background-color: #e2e8f0; color: #1a202c; border-radius: 0.5rem; padding: 1rem; cursor: pointer; transition: all 0.2s ease-in-out; border: 2px solid transparent; text-align: left; width: 100%; }
+        .option-button:hover { background-color: #cbd5e0; border-color: #4a90e2; }
+        .option-button.selected { background-color: #4a90e2; color: #ffffff; border-color: #3182ce; }
+        .option-button.review-selected { background-color: #63b3ed !important; color: #ffffff !important; }
+        .nav-button { background-color: #4a90e2; color: #ffffff; font-weight: 600; border-radius: 0.5rem; padding: 0.75rem 1.5rem; cursor: pointer; transition: all 0.2s ease-in-out; }
+        .nav-button:hover { background-color: #3182ce; }
+        .canvas-container { border: 2px solid #a0aec0; border-radius: 1rem; margin-top: 1.5rem; overflow: hidden; position: relative; }
+        canvas { touch-action: none; cursor: crosshair; }
+        .question-panel-item { width: 2.5rem; height: 2.5rem; display: flex; justify-content: center; align-items: center; border-radius: 0.5rem; font-weight: 600; color: #4a5568; border: 2px solid #a0aec0; cursor: pointer; transition: all 0.2s ease-in-out; }
+        .question-panel-item:hover { background-color: #e2e8f0; }
+        .question-panel-item.answered { background-color: #48bb78; color: #ffffff; border-color: #48bb78; }
+        .question-panel-item.flagged { background-color: #f6ad55; color: #ffffff; border-color: #f6ad55; }
+        .question-panel-item.current { background-color: #2b6cb0; color: #ffffff; border-color: #2b6cb0; transform: scale(1.1); }
+        .question-panel-item.correct-review { background-color: #48bb78; color: white; border-color: #48bb78; }
+        .question-panel-item.incorrect-review { background-color: #f56565; color: white; border-color: #f56565; }
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0, 0, 0, 0.7); justify-content: center; align-items: center; }
+        .modal-content { background-color: #ffffff; margin: auto; padding: 2rem; border-radius: 1rem; box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3); text-align: center; max-width: 90%; }
+        .report-card { padding: 2rem; border-radius: 1rem; box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2); transition: background-color 0.5s, border-color 0.5s; }
+        .confetti-effect { position: absolute; width: 100%; height: 100%; top: 0; left: 0; pointer-events: none; overflow: hidden; }
+        .confetti { position: absolute; width: 10px; height: 10px; opacity: 0.7; animation: confetti-fall 5s linear forwards; }
+        @keyframes confetti-fall { 0% { transform: translateY(-10vh) rotate(0deg); } 100% { transform: translateY(110vh) rotate(720deg); } }
+        .tool-button { width: 3rem; height: 3rem; display: flex; justify-content: center; align-items: center; border-radius: 50%; font-size: 1.5rem; background-color: #e2e8f0; cursor: pointer; transition: all 0.2s ease-in-out; }
+        .tool-button.active, .tool-button:hover { background-color: #4a90e2; color: white; }
+        #mouse-tracker { position: absolute; border-radius: 50%; pointer-events: none; display: none; z-index: 20; transform: translate(-50%, -50%); border: 2px solid rgba(0,0,0,0.5); }
+        
+        /* Theme Switch */
+        .theme-switch-wrapper { display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+        .theme-switch-wrapper span { transition: color 0.3s ease; }
+        .theme-switch { position: relative; display: inline-block; width: 60px; height: 34px; }
+        .theme-switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 26px; width: 26px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: #2b6cb0; }
+        input:checked + .slider:before { transform: translateX(26px); }
+
+        /* Dark Theme */
+        body.dark-theme { background-color: #1a202c; color: #e2e8f0; }
+        body.dark-theme .card { background-color: #2d3748; }
+        body.dark-theme .text-gray-700, body.dark-theme .text-gray-600, body.dark-theme .text-gray-500, body.dark-theme .quiz-card-subtitle { color: #cbd5e0; }
+        body.dark-theme .math-text, body.dark-theme .text-gray-800 { color: #e2e8f0; }
+        body.dark-theme .theme-switch-wrapper span { color: #e2e8f0; }
+        body.dark-theme input, body.dark-theme select { background-color: #4a5568; border-color: #718096; color: #e2e8f0; }
+        body.dark-theme .quiz-card.bg-blue-100 { background-color: #2c5282; color: #bee3f8; }
+        body.dark-theme .quiz-card.bg-green-100 { background-color: #2f855a; color: #c6f6d5; }
+        body.dark-theme .option-button { background-color: #4a5568; color: #e2e8f0; }
+        body.dark-theme .option-button:hover { background-color: #718096; }
+        body.dark-theme .option-button.selected { background-color: #4299e1; color: #1a202c; }
+        body.dark-theme .option-button.review-selected { background-color: #4299e1 !important; color: #1a202c !important; }
+        body.dark-theme .question-panel-item { background-color: #4a5568; border-color: #718096; color: #e2e8f0; }
+        body.dark-theme .question-panel-item.answered, body.dark-theme .question-panel-item.correct-review { background-color: #38a169; }
+        body.dark-theme .question-panel-item.incorrect-review { background-color: #c53030; }
+        body.dark-theme .question-panel-item.flagged { background-color: #dd6b20; }
+        body.dark-theme .question-panel-item.current { background-color: #4299e1; }
+        body.dark-theme .bg-gray-50 { background-color: #4a5568; }
+        body.dark-theme #scratchpad { filter: invert(1); background-color: #f9fafb; }
+        body.dark-theme .modal-content { background-color: #2d3748; }
+        body.dark-theme .tool-button { color: #e2e8f0; background-color: #4a5568; }
+
+        /* Floating Button */
+        #theme-toggle-floating {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            z-index: 1001;
+            cursor: grab;
+            user-select: none;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 0;
+            border-radius: 50%;
+            background-color: #2d3748;
+            color: white;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        body.dark-theme #theme-toggle-floating { background-color: #edf2f7; color: #1a202c; }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <div id="page-container" class="w-full">
+
+        <!-- Halaman Login -->
+        <div id="login-page" class="page card w-full max-w-md text-center p-8 mx-auto">
+            <h1 class="text-3xl font-bold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-indigo-600">Tugas: Barisan & Deret</h1>
+            <p class="text-xl italic text-gray-700 mb-6">Quiz Challenge</p>
+            <div class="mb-4">
+                <input id="nama-siswa" type="text" placeholder="Nama Lengkap" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+            </div>
+            <div class="mb-6">
+                <select id="kelas-siswa" class="w-full px-4 py-3 rounded-lg border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+                    <option value="" disabled selected>Pilih Kelas</option>
+                    <option value="Kelas X-A">Kelas X-A</option>
+                    <option value="Kelas X-B">Kelas X-B</option>
+                    <option value="Kelas X-C">Kelas X-C</option>
+                    <option value="Kelas X-D">Kelas X-D</option>
+                    <option value="Kelas X-E">Kelas X-E</option>
+                    <option value="Kelas X-F">Kelas X-F</option>
+                </select>
+            </div>
+            <div class="theme-switch-wrapper mb-6">
+                <span class="font-semibold">Pilih Tema</span>
+                <label class="theme-switch">
+                    <input type="checkbox" id="theme-switch-login">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <button id="login-button" class="w-full bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700 transition-transform transform hover:scale-105">Lanjutkan</button>
+        </div>
+
+        <!-- Halaman Pemilihan Kuis -->
+        <div id="quiz-selection-page" class="page hidden w-full max-w-xl mx-auto">
+             <div class="card p-6 md:p-8">
+                <h1 class="text-3xl font-bold mb-2 text-center">Pilih Kuis</h1>
+                <p class="text-gray-600 mb-8 text-center">Pilih materi yang ingin Anda kerjakan.</p>
+                <div id="quiz-list" class="grid grid-cols-1 gap-4">
+                    <!-- Kartu kuis akan di-generate oleh JavaScript -->
+                </div>
+            </div>
+        </div>
+
+
+        <!-- Halaman Ujian -->
+        <div id="exam-page" class="page hidden w-full max-w-5xl mx-auto">
+            <div class="fixed top-0 left-0 right-0 bg-white z-50 shadow-md py-3 px-4 md:px-8 flex flex-row justify-between items-center">
+                <div id="question-panel" class="flex flex-row flex-wrap gap-2 max-w-[70%]"></div>
+                <button id="finish-exam-top" class="bg-green-600 text-white px-4 py-2 md:px-6 md:py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Kumpulkan</button>
+            </div>
+
+            <div class="mt-24 w-full">
+                <div class="card p-6 md:p-8">
+                    <div class="flex justify-between items-center mb-4">
+                        <span class="text-gray-600 text-sm font-semibold">Soal <span id="current-question-number">1</span> dari 20</span>
+                         <span id="quiz-title-exam" class="text-blue-600 font-bold text-lg"></span>
+                        <span id="timer" class="text-red-500 font-bold text-lg">Waktu: 00:00</span>
+                    </div>
+                    <div id="question-area" class="mb-6">
+                        <p class="math-text text-gray-800 mb-6" id="question-text"></p>
+                        <div id="options-container" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></div>
+                        <div id="review-status" class="text-2xl font-bold mt-4 text-center"></div>
+                    </div>
+                    <div class="mt-8">
+                        <div class="flex flex-row justify-center items-center space-x-4 mb-4">
+                            <button id="pen-tool" class="tool-button active" title="Pena">&#x270E;</button>
+                            <button id="eraser-tool" class="tool-button" title="Penghapus">&#x1F5D1;</button>
+                            <div class="flex items-center space-x-2">
+                                <span class="text-gray-600 text-sm">Ukuran:</span>
+                                <input type="range" id="eraser-size-slider" min="5" max="50" value="20" class="w-24 md:w-32">
+                            </div>
+                            <button id="reset-tool" class="tool-button" title="Bersihkan">&#x21BB;</button>
+                        </div>
+                        <div class="canvas-container">
+                           <canvas id="scratchpad" class="w-full h-[500px] bg-gray-50"></canvas>
+                           <div id="mouse-tracker"></div>
+                        </div>
+                   </div>
+                </div>
+            </div>
+            <div id="exam-bottom-nav" class="fixed bottom-0 left-0 right-0 bg-white shadow-lg p-4 z-40">
+                <div class="flex justify-between items-center max-w-5xl mx-auto">
+                    <button id="prev-button" class="nav-button px-4 py-2 text-xl font-bold">&#x25C0;</button>
+                    <button id="flag-button" class="bg-yellow-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-yellow-600 transition-colors w-full sm:w-auto">Ragu-ragu</button>
+                    <button id="next-button" class="nav-button px-4 py-2 text-xl font-bold">&#x25B6;</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Halaman Hasil -->
+        <div id="result-page" class="page hidden w-full max-w-2xl p-4 md:p-8 mx-auto">
+            <div class="card report-card relative text-center">
+                <div id="confetti-container" class="confetti-effect"></div>
+                <h1 class="text-3xl font-bold mb-4">Hasil Kuis</h1>
+                <div id="report-info" class="text-center mb-6 space-y-2">
+                    <p class="text-lg">Nama: <span id="result-name" class="font-semibold"></span></p>
+                    <p class="text-lg">Kelas: <span id="result-class" class="font-semibold"></span></p>
+                    <p class="text-lg">Materi: <span id="result-topic" class="font-semibold"></span></p>
+                    <p class="text-lg">Tingkat: <span id="result-difficulty" class="font-semibold"></span></p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                    <div id="score-box" class="p-6 rounded-lg text-center flex flex-col justify-center items-center bg-blue-100 text-blue-800">
+                        <h2 class="text-2xl font-bold">NILAI</h2>
+                        <p id="final-score" class="text-6xl font-extrabold mt-2">0</p>
+                    </div>
+                    <div id="keterangan-box" class="p-6 rounded-lg text-center bg-green-100 text-green-800">
+                        <!-- Konten Keterangan (Medali & Motivasi) akan di-generate oleh JS -->
+                    </div>
+                </div>
+                <button id="back-to-selection-button" class="w-full md:w-auto nav-button">Kembali ke Pilihan Kuis</button>
+            </div>
+        </div>
+
+    </div> <!-- Akhir dari page-container -->
+    
+    <button id="theme-toggle-floating" class="hidden">Tema</button>
+
+    <!-- Modal Konfirmasi Ujian -->
+    <div id="confirm-modal" class="modal">
+        <div class="modal-content w-11/12 sm:w-1/2 md:w-1/3">
+            <p id="modal-message" class="mb-4 text-lg">Apakah Anda yakin ingin menyelesaikan ujian?</p>
+            <div id="modal-buttons" class="flex justify-center space-x-4">
+                <button id="modal-cancel" class="bg-gray-400 text-white px-6 py-2 rounded-lg hover:bg-gray-500">Batal</button>
+                <button id="modal-confirm" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">Ya, Selesaikan</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal Tingkat Kesulitan -->
+    <div id="difficulty-modal" class="modal">
+        <div class="modal-content w-11/12 sm:w-1/2 md:w-1/3">
+            <h2 class="text-2xl font-bold mb-4">Pilih Opsi</h2>
+            <p id="difficulty-quiz-title" class="text-gray-600 mb-6"></p>
+            <div id="difficulty-options" class="flex flex-col space-y-4">
+                <!-- Opsi akan di-generate oleh JS -->
+            </div>
+             <button id="difficulty-cancel" class="mt-6 text-gray-500 hover:text-gray-700">Batal</button>
+        </div>
+    </div>
+
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // --- BANK SOAL ---
+        const bankSoal = {
+            barisanAritmatika: {
+                mudah: [
+                    { q: 'Suku pertama dari barisan aritmatika 2, 5, 8, 11, ... adalah...', o: ['2', '3', '5', '8'], a: '2' },
+                    { q: 'Beda dari barisan aritmatika 3, 7, 11, 15, ... adalah...', o: ['2', '3', '4', '5'], a: '4' },
+                    { q: 'Tiga suku berikutnya dari barisan 1, 5, 9, ... adalah...', o: ['13, 17, 21', '12, 15, 18', '13, 16, 19', '14, 18, 22'], a: '13, 17, 21' },
+                    { q: 'Diketahui barisan aritmatika dengan suku pertama 5 dan beda 3. Suku ke-4 adalah...', o: ['11', '14', '17', '20'], a: '14' },
+                    { q: 'Rumus suku ke-n dari barisan 2, 4, 6, 8, ... adalah...', o: ['$U_n=2n$', '$U_n=n+2$', '$U_n=2n+2$', '$U_n=n^2$'], a: '$U_n=2n$' },
+                    { q: 'Suku ke-5 dari barisan 10, 8, 6, 4, ... adalah...', o: ['2', '0', '-2', '4'], a: '2' },
+                    { q: 'Beda dari barisan aritmatika 20, 17, 14, ... adalah...', o: ['3', '-3', '2', '-2'], a: '-3' },
+                    { q: 'Diketahui suku pertama barisan aritmatika adalah 7 dan bedanya adalah 4. Tiga suku pertamanya adalah...', o: ['7, 11, 15', '7, 10, 13', '4, 8, 12', '4, 7, 10'], a: '7, 11, 15' },
+                    { q: 'Manakah di bawah ini yang merupakan barisan aritmatika?', o: ['2, 4, 8, 16', '1, 3, 6, 10', '5, 10, 15, 20', '1, 1, 2, 3'], a: '5, 10, 15, 20' },
+                    { q: 'Rumus suku ke-n dari barisan 5, 8, 11, 14, ... adalah...', o: ['$U_n=3n+2$', '$U_n=2n+3$', '$U_n=5n-2$', '$U_n=3n-2$'], a: '$U_n=3n+2$' }
+                ],
+                sedang: [
+                    { q: 'Suku ke-10 dari barisan aritmatika 3, 8, 13, ... adalah...', o: ['43', '48', '53', '58'], a: '48' },
+                    { q: 'Diketahui barisan aritmatika dengan $U_3 = 7$ dan $U_8 = 17$. Beda barisan tersebut adalah...', o: ['1', '2', '3', '4'], a: '2' },
+                    { q: 'Banyaknya suku pada barisan aritmatika 5, 10, 15, ..., 55 adalah...', o: ['10', '11', '12', '13'], a: '11' },
+                    { q: 'Dalam suatu barisan aritmatika, suku ke-5 adalah 23 dan suku ke-12 adalah 51. Suku pertama barisan tersebut adalah...', o: ['3', '5', '7', '9'], a: '7' },
+                    { q: 'Suku tengah dari barisan aritmatika 7, 11, 15, ..., 63 adalah...', o: ['31', '35', '39', '43'], a: '35' },
+                    { q: 'Suku ke-20 dari barisan aritmatika -3, 2, 7, ... adalah...', o: ['92', '97', '102', '107'], a: '92' },
+                    { q: 'Jika suku ke-4 dan suku ke-9 suatu barisan aritmatika adalah 110 dan 150, maka suku ke-30 adalah...', o: ['300', '318', '326', '340'], a: '318' },
+                    { q: 'Diketahui barisan aritmatika $5, 8, 11, ..., 125, 128, 131$. Suku tengahnya adalah...', o: ['68', '71', '83', '86'], a: '68' },
+                    { q: 'Banyaknya bilangan antara 101 dan 1000 yang habis dibagi 7 adalah...', o: ['128', '129', '130', '131'], a: '128' },
+                    { q: 'Suku ke-n suatu barisan aritmatika adalah $U_n = 5 - 3n$. Beda barisan tersebut adalah...', o: ['3', '-3', '5', '2'], a: '-3' },
+                    { q: 'Suku ke-6 dari barisan aritmatika adalah 17 dan suku ke-10 adalah 33. Suku ke-15 adalah...', o: ['49', '53', '57', '61'], a: '53' },
+                    { q: 'Dalam sebuah gedung pertunjukan, baris pertama ada 20 kursi. Baris berikutnya bertambah 4 kursi. Banyak kursi pada baris ke-12 adalah...', o: ['60', '64', '68', '72'], a: '64' },
+                    { q: 'Diketahui $U_5 = 19$ dan $U_9 = 35$ dari suatu barisan aritmatika. Suku pertama dan bedanya adalah...', o: ['a=3, b=4', 'a=4, b=3', 'a=5, b=4', 'a=4, b=5'], a: 'a=3, b=4' },
+                    { q: 'Sebuah barisan aritmatika memiliki 41 suku. Jika suku tengahnya adalah 50, maka suku pertama dan terakhirnya berjumlah...', o: ['75', '100', '125', '150'], a: '100' },
+                    { q: 'Diketahui suatu barisan aritmatika. Suku ke-2 = 7 dan suku ke-4 = 15. Suku ke-11 adalah...', o: ['43', '47', '51', '55'], a: '43' }
+                ],
+                sulit: [
+                    { q: 'Di antara bilangan 4 dan 28 disisipkan 5 bilangan sehingga membentuk barisan aritmatika. Beda barisan tersebut adalah...', o: ['3', '4', '5', '6'], a: '4' },
+                    { q: 'Jumlah $n$ suku pertama suatu deret aritmatika adalah $S_n = 2n^2 + 4n$. Suku ke-9 deret tersebut adalah...', o: ['36', '38', '40', '42'], a: '38' },
+                    { q: 'Seorang ayah membagikan uang sebesar Rp100.000 kepada 4 orang anaknya. Makin muda usia anak, makin kecil uang yang diterima. Jika selisih yang diterima oleh setiap dua anak yang usianya berdekatan adalah Rp5.000 dan si sulung menerima uang paling banyak, maka jumlah uang yang diterima si bungsu adalah...', o: ['Rp12.500', 'Rp15.000', 'Rp17.500', 'Rp20.000'], a: 'Rp17.500' },
+                    { q: 'Diketahui barisan aritmatika dengan $U_n$ adalah suku ke-n. Jika $U_2 + U_{15} + U_{40} = 165$, maka $U_{19}$ adalah...', o: ['55', '65', '75', '85'], a: '55' },
+                    { q: 'Tiga bilangan membentuk barisan aritmatika. Jika jumlah ketiga bilangan itu 36 dan hasil kalinya 1536, maka bilangan terbesarnya adalah...', o: ['12', '16', '18', '20'], a: '16' },
+                    { q: 'Jumlah 5 suku pertama suatu deret aritmatika adalah 20. Jika masing-masing suku dikurangi dengan suku ke-3, maka hasil kali suku ke-1, ke-2, ke-4, dan ke-5 adalah 324. Jumlah 8 suku pertama deret tersebut adalah...', o: ['-4', '68', '4', '72'], a: '68' },
+                    { q: 'Empat buah bilangan positif membentuk barisan aritmatika. Jika perkalian bilangan pertama dan keempat adalah 46, dan perkalian bilangan kedua dan ketiga adalah 144, maka jumlah keempat bilangan tersebut adalah...', o: ['40', '50', '60', '70'], a: '50' },
+                    { q: 'Sisi-sisi sebuah segitiga siku-siku membentuk barisan aritmatika. Jika keliling segitiga tersebut 72 cm, maka luasnya adalah...', o: ['192 cm$^2$', '216 cm$^2$', '256 cm$^2$', '288 cm$^2$'], a: '216 cm$^2$' },
+                    { q: 'Dari suatu barisan aritmatika, suku ketiga adalah 36, jumlah suku kelima dan ketujuh adalah 144. Suku ke seratus barisan tersebut adalah...', o: ['1188', '1192', '1204', '1212'], a: '1188' },
+                    { q: 'Jika $a, a+b, a+2b$ adalah barisan aritmatika, maka nilai dari $\\frac{U_3-U_1}{U_2-U_1}$ adalah...', o: ['1', '2', '3', 'b'], a: '2' }
+                ]
+            },
+            deretAritmatika: {
+                mudah: [
+                    { q: 'Jumlah 5 suku pertama dari barisan 2, 4, 6, 8, 10, ... adalah...', o: ['20', '25', '30', '35'], a: '30' },
+                    { q: 'Hasil dari $1+2+3+4+5$ adalah...', o: ['10', '15', '20', '25'], a: '15' },
+                    { q: 'Jumlah 4 suku pertama deret aritmatika dengan suku pertama 3 dan beda 2 adalah...', o: ['18', '20', '22', '24'], a: '24' },
+                    { q: 'Diketahui deret 5 + 8 + 11 + 14. Jumlah deret tersebut adalah...', o: ['38', '40', '42', '44'], a: '38' },
+                    { q: 'Rumus jumlah n suku pertama dari deret 1 + 3 + 5 + 7 + ... adalah...', o: ['$S_n=n^2$', '$S_n=2n-1$', '$S_n=n(n+1)$', '$S_n=n^2+1$'], a: '$S_n=n^2$' },
+                    { q: 'Jumlah 10 suku pertama dari barisan bilangan genap adalah...', o: ['100', '110', '120', '130'], a: '110' },
+                    { q: 'Jumlah 3 suku pertama dari deret dengan $U_n = 2n+1$ adalah...', o: ['12', '15', '18', '21'], a: '15' },
+                    { q: 'Diketahui deret aritmatika: 10 + 12 + 14 + ... Jumlah 5 suku pertamanya adalah...', o: ['60', '70', '80', '90'], a: '70' },
+                    { q: 'Nilai dari $2+4+6+...+20$ adalah...', o: ['100', '105', '110', '120'], a: '110' },
+                    { q: 'Suku pertama deret aritmatika adalah 5 dan suku ke-3 adalah 9. Jumlah 4 suku pertamanya adalah...', o: ['24', '26', '28', '30'], a: '28' }
+                ],
+                sedang: [
+                    { q: 'Jumlah 10 suku pertama dari deret aritmatika 4 + 7 + 10 + ... adalah...', o: ['155', '165', '175', '185'], a: '175' },
+                    { q: 'Diketahui deret aritmatika dengan suku pertama 10 dan beda -2. Jumlah 8 suku pertamanya adalah...', o: ['16', '24', '32', '40'], a: '24' },
+                    { q: 'Jumlah semua bilangan asli kelipatan 3 yang kurang dari 100 adalah...', o: ['1683', '1680', '1653', '1623'], a: '1683' },
+                    { q: 'Dari suatu deret aritmatika diketahui $U_3 = 13$ dan $U_7 = 29$. Jumlah 25 suku pertama deret tersebut adalah...', o: ['2500', '2600', '1300', '1275'], a: '1275' },
+                    { q: 'Gaji seorang karyawan setiap bulan dinaikkan sebesar Rp 50.000. Jika gaji pertama karyawan tersebut Rp 2.500.000, maka jumlah gaji selama satu tahun pertama adalah...', o: ['Rp 33.300.000', 'Rp 32.500.000', 'Rp 31.800.000', 'Rp 30.000.000'], a: 'Rp 33.300.000' },
+                    { q: 'Jumlah 15 suku pertama dari deret 15, 13, 11, ... adalah...', o: ['-15', '0', '15', '30'], a: '15' },
+                    { q: 'Diketahui deret aritmatika dengan suku ke-3 adalah 9 dan suku ke-6 adalah 18. Jumlah 10 suku pertama adalah...', o: ['155', '160', '165', '170'], a: '165' },
+                    { q: 'Dalam ruang sidang terdapat 15 baris kursi, baris paling depan terdapat 23 kursi, baris berikutnya 2 kursi lebih banyak dari baris di depannya. Jumlah kursi dalam ruang sidang tersebut adalah...', o: ['555', '655', '755', '855'], a: '555' },
+                    { q: 'Jumlah bilangan asli antara 1 dan 100 yang habis dibagi 4 adalah...', o: ['1200', '1250', '1300', '1350'], a: '1300' },
+                    { q: 'Rumus jumlah n suku pertama deret aritmatika adalah $S_n = 4n^2-n$. Suku ke-5 deret tersebut adalah...', o: ['35', '39', '43', '47'], a: '35' }
+                ],
+                sulit: [
+                    { q: 'Dalam sebuah gedung pertunjukan, kursi di baris paling depan ada 15. Baris di belakangnya selalu lebih banyak 3 kursi. Jika ada 12 baris kursi, total kursi di gedung itu adalah...', o: ['366', '378', '382', '390'], a: '378' },
+                    { q: 'Seorang pekerja gajinya pada bulan pertama Rp 1.600.000. Setiap bulan gajinya naik Rp 50.000. Jumlah gaji selama satu tahun pertama adalah...', o: ['Rp 22.500.000', 'Rp 22.200.000', 'Rp 21.900.000', 'Rp 21.600.000'], a: 'Rp 22.500.000' },
+                    { q: 'Jumlah semua bilangan ganjil antara 100 dan 200 adalah...', o: ['7500', '7600', '7700', '7800'], a: '7500' },
+                    { q: 'Seorang petani mencatat hasil panennya selama 11 hari. Jika hasil panen hari pertama 15 kg dan mengalami kenaikan tetap sebesar 2 kg setiap hari, maka jumlah hasil panen yang dicatat adalah...', o: ['285 kg', '295 kg', '305 kg', '315 kg'], a: '285 kg' },
+                    { q: 'Jumlah n suku pertama deret aritmatika ditentukan oleh $S_n = 2n^2 + n$. Beda deret itu adalah...', o: ['2', '3', '4', '5'], a: '4' },
+                    { q: 'Diketahui $S_n$ adalah jumlah n suku pertama barisan aritmatika. Jika $S_5 = 35$ dan $S_9 = 99$, maka suku ke-11 barisan tersebut adalah...', o: ['25', '29', '31', '35'], a: '31' },
+                    { q: 'Jumlah 20 suku pertama suatu deret aritmatika ialah 500. Jika suku pertamanya ialah 5, maka suku terakhirnya ialah...', o: ['40', '45', '50', '55'], a: '45' },
+                    { q: 'Seorang pemetik kebun memetik jeruk pada hari pertama sebanyak 100 buah, hari kedua 125 buah, hari ketiga 150 buah dan seterusnya. Jumlah jeruk yang ia petik selama 10 hari pertama adalah...', o: ['2075 buah', '2125 buah', '2250 buah', '2375 buah'], a: '2125 buah' },
+                    { q: 'Jumlah 101 bilangan genap berurutan adalah 13130. Jumlah 3 bilangan terkecil yang pertama dari bilangan-bilangan genap tersebut adalah...', o: ['90', '96', '102', '108'], a: '96' },
+                    { q: 'Jika jumlah 10 suku pertama suatu deret aritmatika adalah -110 dan jumlah 2 suku berturut-turut berikutnya adalah 2, maka jumlah 2 suku pertama deret itu adalah...', o: ['-21', '-38', '-42', '-48'], a: '-38' }
+                ]
+            },
+            barisanGeometri: {
+                mudah: [
+                    { q: 'Rasio dari barisan geometri 2, 6, 18, 54, ... adalah...', o: ['2', '3', '4', '6'], a: '3' },
+                    { q: 'Suku pertama dari barisan 81, 27, 9, ... adalah...', o: ['3', '9', '27', '81'], a: '81' },
+                    { q: 'Tiga suku berikutnya dari barisan 1, 2, 4, 8, ... adalah...', o: ['16, 32, 64', '14, 28, 56', '12, 24, 48', '10, 20, 40'], a: '16, 32, 64' },
+                    { q: 'Manakah di bawah ini yang merupakan barisan geometri?', o: ['3, 6, 9, 12', '1, 4, 9, 16', '2, 4, 8, 16', '10, 8, 6, 4'], a: '2, 4, 8, 16' },
+                    { q: 'Rasio dari barisan 48, 24, 12, 6, ... adalah...', o: ['2', '-2', '1/2', '-1/2'], a: '1/2' },
+                    { q: 'Suku ke-4 dari barisan geometri dengan suku pertama 5 dan rasio 2 adalah...', o: ['20', '30', '40', '50'], a: '40' },
+                    { q: 'Rumus suku ke-n dari barisan 3, 9, 27, ... adalah...', o: ['$U_n=3^n$', '$U_n=3n$', '$U_n=n^3$', '$U_n=3^{n-1}$'], a: '$U_n=3^n$' },
+                    { q: 'Jika suku pertama barisan geometri adalah 100 dan rasionya 1/5, maka suku keduanya adalah...', o: ['10', '20', '25', '50'], a: '20' },
+                    { q: 'Dua suku berikutnya dari barisan 5, 10, 20, ... adalah...', o: ['25, 30', '30, 40', '40, 80', '35, 70'], a: '40, 80' },
+                    { q: 'Suku ke-5 dari barisan 162, 54, 18, ... adalah...', o: ['2', '3', '6', '9'], a: '2' }
+                ],
+                sedang: [
+                    { q: 'Suku ke-7 dari barisan geometri 3, 6, 12, ... adalah...', o: ['96', '128', '192', '256'], a: '192' },
+                    { q: 'Diketahui barisan geometri dengan suku pertama 16 dan rasio 1/2. Suku ke-5 adalah...', o: ['4', '2', '1', '1/2'], a: '1' },
+                    { q: 'Dalam barisan geometri, $U_2 = 6$ dan $U_5 = 162$. Rasio barisan tersebut adalah...', o: ['2', '3', '4', '5'], a: '3' },
+                    { q: 'Suatu barisan geometri mempunyai $U_3 = 12$ dan $U_6 = 96$. Suku ke-8 barisan tersebut adalah...', o: ['192', '256', '384', '512'], a: '384' },
+                    { q: 'Populasi sebuah kota meningkat 2% setiap tahun. Jika populasi pada tahun 2020 adalah 1.000.000 jiwa, perkiraan populasi pada tahun 2022 adalah...', o: ['1.040.400', '1.040.000', '1.020.000', '1.200.000'], a: '1.040.400' },
+                    { q: 'Sebuah bakteri membelah diri menjadi 2 setiap 15 menit. Jika pada pukul 12.00 ada 1000 bakteri, banyak bakteri pada pukul 13.00 adalah...', o: ['4000', '8000', '16000', '32000'], a: '16000' },
+                    { q: 'Suku ke-n suatu barisan geometri adalah $U_n = 4^{n-2}$. Rasio barisan tersebut adalah...', o: ['1/4', '1/2', '2', '4'], a: '4' },
+                    { q: 'Diketahui barisan geometri dengan $U_1 = x^{-4}$ dan $U_5 = x^{12}$. Nilai $U_9$ adalah...', o: ['$x^{20}$', '$x^{24}$', '$x^{28}$', '$x^{32}$'], a: '$x^{28}$' },
+                    { q: 'Jika suku pertama barisan geometri adalah 16 dan suku ke-3 adalah 36, maka suku ke-5 barisan tersebut adalah...', o: ['-81', '48', '54', '81'], a: '81' },
+                    { q: 'Tiga bilangan $k, 2k, 4k+6$ membentuk barisan geometri. Nilai $k$ adalah...', o: ['2', '3', '4', '6'], a: '3' }
+                ],
+                sulit: [
+                    { q: 'Seutas tali dipotong menjadi 6 bagian dan membentuk barisan geometri. Jika potongan terpendek 3 cm dan terpanjang 96 cm, panjang tali semula adalah...', o: ['189 cm', '192 cm', '195 cm', '198 cm'], a: '189 cm' },
+                    { q: 'Sebuah amuba membelah diri menjadi dua setiap 20 menit. Jika mula-mula ada 15 amuba, banyak amuba setelah 2 jam adalah...', o: ['480', '960', '1920', '3840'], a: '960' },
+                    { q: 'Tiga bilangan membentuk barisan geometri. Jumlahnya adalah 26 dan hasil kalinya adalah 216. Rasio barisan tersebut adalah...', o: ['2', '3', '1/2', '1/3'], a: '3' },
+                    { q: 'Di antara bilangan 3 dan 96 disisipkan 4 bilangan sehingga membentuk barisan geometri. Suku ke-4 barisan tersebut adalah...', o: ['12', '18', '24', '36'], a: '24' },
+                    { q: 'Suku ke-2 dan suku ke-5 suatu barisan geometri berturut-turut adalah 6 dan 162. Suku ke-8 barisan tersebut adalah...', o: ['4374', '4274', '1458', '1358'], a: '4374' },
+                    { q: 'Jika $(k-2), (k-6), (2k+3)$ membentuk barisan geometri, maka nilai $k$ adalah...', o: ['1/2', '2', '1/3', '3'], a: '1/2' },
+                    { q: 'Sebuah bola jatuh dari ketinggian 8 meter dan memantul kembali dengan ketinggian $\\frac{3}{5}$ kali tinggi sebelumnya. Tinggi bola pada pantulan ke-4 adalah...', o: ['1,0368 m', '1,728 m', '2,88 m', '4,8 m'], a: '1,0368 m' },
+                    { q: 'Jika $U_1, U_2, U_3, ...$ adalah barisan geometri dengan $U_3=3$ dan $U_5=27$, maka $U_7$ adalah...', o: ['81', '162', '243', '729'], a: '243' },
+                    { q: 'Jumlah penduduk suatu kota tiap tahun meningkat sekitar 2% dari jumlah penduduk tahun sebelumnya. Berdasarkan sensus penduduk tahun 2015, jumlah penduduk di kota tersebut 2.000.000 orang. Jumlah penduduk di kota tersebut pada tahun 2018 adalah...', o: ['2.122.416', '2.080.800', '2.040.000', '2.120.000'], a: '2.122.416' },
+                    { q: 'Nilai $x$ positif agar barisan $x+1, 2x, 4x-3$ menjadi barisan geometri adalah...', o: ['1', '3/2', '2', '3'], a: '3' }
+                ]
+            },
+            deretGeometri: {
+                mudah: [
+                    { q: 'Jumlah 4 suku pertama dari deret 1 + 3 + 9 + ... adalah...', o: ['30', '35', '40', '45'], a: '40' },
+                    { q: 'Hasil dari $2+4+8+16$ adalah...', o: ['28', '30', '32', '34'], a: '30' },
+                    { q: 'Jumlah 3 suku pertama dari deret 5 + 10 + 20 + ... adalah...', o: ['30', '35', '40', '45'], a: '35' },
+                    { q: 'Diketahui deret geometri dengan $U_1=4$ dan rasio 3. Jumlah 3 suku pertamanya adalah...', o: ['48', '52', '56', '60'], a: '52' },
+                    { q: 'Jumlah tak hingga dari deret $16+8+4+...$ adalah...', o: ['24', '28', '32', '36'], a: '32' },
+                    { q: 'Jumlah deret $81+27+9+...+1/9$ adalah...', o: ['121.44', '121.33', '121.22', '121.11'], a: '121.44' },
+                    { q: 'Suku pertama deret geometri adalah 2, rasionya 3. Jumlah 4 suku pertamanya adalah...', o: ['60', '70', '80', '90'], a: '80' },
+                    { q: 'Nilai dari $\\sum_{k=1}^{4} 2^k$ adalah...', o: ['28', '30', '32', '34'], a: '30' },
+                    { q: 'Jumlah deret geometri $1/2+1/4+1/8+...$ adalah...', o: ['1', '2', '1/2', 'tak hingga'], a: '1' },
+                    { q: 'Jumlah 5 suku pertama dari deret geometri dengan $U_n = 3 \\cdot 2^{n-1}$ adalah...', o: ['93', '95', '97', '99'], a: '93' }
+                ],
+                sedang: [
+                    { q: 'Jumlah 5 suku pertama dari deret geometri 4 + 12 + 36 + ... adalah...', o: ['484', '480', '464', '460'], a: '484' },
+                    { q: 'Diketahui deret geometri dengan $U_1=5$ dan rasio 2. Jumlah 6 suku pertamanya adalah...', o: ['310', '315', '320', '325'], a: '315' },
+                    { q: 'Jumlah 8 suku pertama dari deret 2 + 6 + 18 + ... adalah...', o: ['6560', '6562', '6564', '6566'], a: '6560' },
+                    { q: 'Suku pertama suatu deret geometri adalah 160 dan rasionya 3/2. Jumlah 5 suku pertamanya adalah...', o: ['1810', '1920', '2050', '2110'], a: '2110' },
+                    { q: 'Dari deret geometri diketahui $U_2=6$ dan $U_5=48$. Jumlah 7 suku pertama deret tersebut adalah...', o: ['381', '384', '387', '390'], a: '381' },
+                    { q: 'Seutas tali dipotong menjadi 5 bagian membentuk deret geometri. Jika tali terpendek 10 cm dan terpanjang 160 cm, panjang tali semula adalah...', o: ['300 cm', '310 cm', '320 cm', '330 cm'], a: '310 cm' },
+                    { q: 'Setiap bakteri akan membelah diri menjadi 2 setiap 12 menit. Jika banyaknya bakteri pada pukul 12.40 adalah 25, maka banyak bakteri pada pukul 14.04 adalah...', o: ['400', '800', '1600', '3200'], a: '1600' },
+                    { q: 'Jumlah deret geometri tak hingga $54+18+6+...$ adalah...', o: ['72', '81', '90', '108'], a: '81' },
+                    { q: 'Sebuah bola pingpong dijatuhkan dari ketinggian 25 m dan memantul kembali dengan ketinggian 4/5 kali tinggi sebelumnya. Panjang lintasan bola sampai berhenti adalah...', o: ['100 m', '125 m', '200 m', '225 m'], a: '225 m' },
+                    { q: 'Jumlah tak hingga suatu deret geometri adalah 8 dan rasionya 1/2. Suku pertama deret tersebut adalah...', o: ['2', '4', '6', '8'], a: '4' }
+                ],
+                sulit: [
+                    { q: 'Jumlah $n$ suku pertama deret geometri adalah $S_n = 2^{n+1} - 2$. Rasio deret tersebut adalah...', o: ['1/2', '2', '3', '4'], a: '2' },
+                    { q: 'Seorang karyawan menabung dengan setoran awal Rp 50.000. Setiap bulan berikutnya, ia menabung dua kali lipat dari bulan sebelumnya. Total tabungan setelah 5 bulan adalah...', o: ['Rp 1.500.000', 'Rp 1.550.000', 'Rp 1.600.000', 'Rp 1.650.000'], a: 'Rp 1.550.000' },
+                    { q: 'Jumlah deret geometri tak hingga adalah 81. Jika rasionya 2/3, maka suku pertamanya adalah...', o: ['27', '36', '45', '54'], a: '27' },
+                    { q: 'Sebuah ayunan mencapai lintasan pertama sejauh 90 cm, dan lintasan berikutnya hanya mencapai 5/8 dari lintasan sebelumnya. Panjang seluruh lintasan hingga ayunan berhenti adalah...', o: ['200 cm', '220 cm', '240 cm', '260 cm'], a: '240 cm' },
+                    { q: 'Jika jumlah semua suku deret geometri tak hingga adalah 96 dan jumlah semua sukunya yang berindeks ganjil adalah 64, maka suku ke-4 deret tersebut adalah...', o: ['4', '6', '8', '10'], a: '4' },
+                    { q: 'Diketahui suku ke-n deret geometri adalah $U_n=4^{-n}$. Jumlah tak hingga deret tersebut adalah...', o: ['1/2', '1/3', '1/4', '1/5'], a: '1/3' },
+                    { q: 'Suku pertama dan suku kedua suatu deret geometri berturut-turut adalah $p^2$ dan $p^x$. Jika suku ketujuh adalah $p^{18}$, maka nilai $x$ adalah...', o: ['3', '4', '5', '6'], a: '4' },
+                    { q: 'Tiga buah bilangan membentuk deret geometri. Jika jumlahnya 21 dan hasil kalinya 216, maka rasio deret tersebut yang lebih kecil dari 1 adalah...', o: ['1/4', '1/3', '1/2', '2/3'], a: '1/2' },
+                    { q: 'Jumlah 6 suku pertama deret geometri adalah 252 dan jumlah 3 suku pertamanya adalah 28. Suku ke-5 deret tersebut adalah...', o: ['64', '81', '96', '108'], a: '96' },
+                    { q: 'Sebuah bola dijatuhkan dan memantul kembali dengan ketinggian 3/4 dari tinggi semula. Jika panjang seluruh lintasan bola adalah 350 cm, maka tinggi bola pada pantulan pertama adalah...', o: ['75 cm', '100 cm', '125 cm', '150 cm'], a: '75 cm' }
+                ]
+            }
+        };
+
+        // --- ELEMEN DOM ---
+        const loginPage = document.getElementById('login-page');
+        const quizSelectionPage = document.getElementById('quiz-selection-page');
+        const examPage = document.getElementById('exam-page');
+        const resultPage = document.getElementById('result-page');
+        const loginButton = document.getElementById('login-button');
+        const finishExamTopButton = document.getElementById('finish-exam-top');
+        const flagButton = document.getElementById('flag-button');
+        const prevButton = document.getElementById('prev-button');
+        const nextButton = document.getElementById('next-button');
+        const backToSelectionButton = document.getElementById('back-to-selection-button');
+        const questionPanel = document.getElementById('question-panel');
+        const optionsContainer = document.getElementById('options-container');
+        const scratchpadCanvas = document.getElementById('scratchpad');
+        const timerDisplay = document.getElementById('timer');
+        const confirmModal = document.getElementById('confirm-modal');
+        const modalConfirmButton = document.getElementById('modal-confirm');
+        const modalCancelButton = document.getElementById('modal-cancel');
+        const difficultyModal = document.getElementById('difficulty-modal');
+        const difficultyQuizTitle = document.getElementById('difficulty-quiz-title');
+        const difficultyOptionsContainer = document.getElementById('difficulty-options');
+        const difficultyCancelButton = document.getElementById('difficulty-cancel');
+        const penToolButton = document.getElementById('pen-tool');
+        const eraserToolButton = document.getElementById('eraser-tool');
+        const resetToolButton = document.getElementById('reset-tool');
+        const eraserSizeSlider = document.getElementById('eraser-size-slider');
+        const mouseTracker = document.getElementById('mouse-tracker');
+        const themeSwitchLogin = document.getElementById('theme-switch-login');
+        const themeToggleFloating = document.getElementById('theme-toggle-floating');
+        const reviewStatusEl = document.getElementById('review-status');
+
+
+        // --- STATE APLIKASI ---
+        const ctx = scratchpadCanvas.getContext('2d');
+        let drawing = false, lastX = 0, lastY = 0;
+        let examQuestions = [], userAnswers = [], userFlags = [], scratchpadData = [];
+        let currentQuestionIndex = -1;
+        let timerInterval;
+        let remainingTime;
+        let quizProgress = {};
+        let currentQuizTopic = '', currentDifficulty = '';
+        let currentTool = 'pen';
+        let currentTheme = localStorage.getItem('quizTheme') || 'light';
+        let isReviewMode = false;
+
+        const QUIZ_PROGRESS_KEY = 'sequencesQuizProgress';
+
+        // --- FUNGSI UTAMA ---
+        function renderMath() {
+            renderMathInElement(document.body, {
+                delimiters: [ {left: '$$', right: '$$', display: true}, {left: '$', right: '$', display: false} ]
+            });
+        }
+        
+        function switchPage(activePage) {
+            [loginPage, quizSelectionPage, examPage, resultPage].forEach(page => {
+                if (page === activePage) {
+                    page.classList.remove('hidden');
+                    setTimeout(() => page.style.opacity = 1, 10);
+                } else {
+                    page.style.opacity = 0;
+                    setTimeout(() => page.classList.add('hidden'), 500);
+                }
+            });
+             themeToggleFloating.classList.toggle('hidden', activePage !== quizSelectionPage);
+        }
+
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function prepareQuizQuestions(topic, difficulty) {
+            const topicQuestions = bankSoal[topic];
+            let questionPool = [];
+
+            if (difficulty === 'Sedang') {
+                questionPool = [...topicQuestions.mudah, ...topicQuestions.sedang];
+            } else { // Sulit
+                questionPool = [...topicQuestions.sedang, ...topicQuestions.sulit];
+            }
+            
+            // Filter untuk memastikan soal unik berdasarkan teks pertanyaan 'q'
+            const uniqueQuestions = questionPool.filter((question, index, self) =>
+                index === self.findIndex((q) => (
+                    q.q === question.q
+                ))
+            );
+            
+            shuffle(uniqueQuestions);
+            
+            // Kembalikan 20 soal unik, atau kurang jika bank soal tidak mencukupi
+            return uniqueQuestions.slice(0, 20);
+        }
+        
+        function setupExamForNewQuiz() {
+            isReviewMode = false;
+            document.getElementById('timer').style.display = 'block';
+            document.getElementById('exam-bottom-nav').style.display = 'flex';
+            const topButton = document.getElementById('finish-exam-top');
+            topButton.textContent = 'Kumpulkan';
+            topButton.onclick = () => showCustomModal('Apakah Anda yakin ingin menyelesaikan ujian?');
+            checkExamCompletionStatus();
+        }
+
+        function setupExamForReview() {
+            isReviewMode = true;
+            document.getElementById('timer').style.display = 'none';
+            document.getElementById('exam-bottom-nav').style.display = 'none';
+            const topButton = document.getElementById('finish-exam-top');
+            topButton.textContent = 'Kembali';
+            topButton.disabled = false;
+            topButton.onclick = showQuizSelectionPage;
+        }
+
+        function startNewQuiz(topic, difficulty) {
+            // Reset state terlebih dahulu untuk memastikan tombol 'Kumpulkan' terkunci
+            userAnswers = [];
+            userFlags = [];
+            scratchpadData = [];
+
+            setupExamForNewQuiz();
+            currentQuizTopic = topic;
+            currentDifficulty = difficulty;
+            const topicKey = Object.keys(bankSoal).find(key => bankSoal[key].displayName === topic);
+
+            examQuestions = prepareQuizQuestions(topicKey, difficulty);
+            // Inisialisasi state berdasarkan jumlah soal yang sebenarnya
+            const questionCount = examQuestions.length;
+            userAnswers = Array(questionCount).fill(null);
+            userFlags = Array(questionCount).fill(false);
+            scratchpadData = Array(questionCount).fill(null);
+            
+            document.getElementById('quiz-title-exam').textContent = `${topic}`;
+            
+            switchPage(examPage);
+            setupCanvas(scratchpadCanvas, ctx);
+            displayQuestion(0);
+            startTimer();
+            checkExamCompletionStatus(); // Panggil lagi setelah semua state direset
+        }
+
+        function startReviewMode(topic, difficulty) {
+            setupExamForReview();
+            const savedData = quizProgress[topic][difficulty];
+            examQuestions = savedData.questions;
+            userAnswers = savedData.userAnswers;
+            scratchpadData = savedData.scratchpadData;
+            document.getElementById('quiz-title-exam').textContent = `${topic} (Mode Tinjauan)`;
+
+            switchPage(examPage);
+            setupCanvas(scratchpadCanvas, ctx);
+            displayQuestion(0);
+        }
+
+
+        function displayQuestion(index) {
+            if (currentQuestionIndex !== -1 && index !== currentQuestionIndex && !isReviewMode) {
+                 saveCanvasState(currentQuestionIndex);
+            }
+            
+            currentQuestionIndex = index;
+            const questionData = examQuestions[currentQuestionIndex];
+            if (!questionData) return;
+            reviewStatusEl.textContent = ''; // Clear status on new question
+
+            document.getElementById('current-question-number').textContent = currentQuestionIndex + 1;
+            document.getElementById('question-text').innerHTML = questionData.q;
+            
+            optionsContainer.innerHTML = '';
+            const optionLetters = ['A', 'B', 'C', 'D'];
+            
+            questionData.o.forEach((option) => {
+                const button = document.createElement('button');
+                button.className = 'option-button';
+                button.dataset.value = option;
+                const optionIndex = questionData.o.indexOf(option);
+                button.innerHTML = `<span class="font-bold">${optionLetters[optionIndex]}.</span> <span class="math-text">${option}</span>`;
+                
+                if (isReviewMode) {
+                    button.disabled = true;
+                    const userAnswer = userAnswers[currentQuestionIndex];
+                    if (option === userAnswer) {
+                        button.classList.add('review-selected');
+                    }
+                } else {
+                     button.onclick = () => selectOption(option);
+                }
+                optionsContainer.appendChild(button);
+            });
+
+            if (isReviewMode) {
+                const userAnswer = userAnswers[currentQuestionIndex];
+                const isCorrect = userAnswer === questionData.a;
+                if (isCorrect) {
+                    reviewStatusEl.textContent = 'Benar';
+                    reviewStatusEl.className = 'text-2xl font-bold mt-4 text-center text-green-500';
+                } else {
+                    reviewStatusEl.textContent = 'Salah';
+                    reviewStatusEl.className = 'text-2xl font-bold mt-4 text-center text-red-500';
+                }
+            } else {
+                 if (userAnswers[currentQuestionIndex] !== null) {
+                    const escapedAnswer = userAnswers[currentQuestionIndex].replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+                    const selectedButton = optionsContainer.querySelector(`[data-value="${escapedAnswer}"]`);
+                    if(selectedButton) selectedButton.classList.add('selected');
+                }
+            }
+
+            updateNavButtons();
+            updateActionButtons();
+            updateQuestionPanel();
+            renderMath();
+            loadCanvasState(currentQuestionIndex);
+        }
+
+        function selectOption(selectedOption) {
+            userAnswers[currentQuestionIndex] = selectedOption;
+            updateQuestionPanel();
+            displayQuestion(currentQuestionIndex);
+            checkExamCompletionStatus();
+        }
+
+        function updateNavButtons() {
+            if (!examQuestions || examQuestions.length === 0) return;
+            prevButton.style.visibility = currentQuestionIndex === 0 ? 'hidden' : 'visible';
+            nextButton.style.visibility = currentQuestionIndex === examQuestions.length - 1 ? 'hidden' : 'visible';
+        }
+        
+        function updateActionButtons() {
+            flagButton.textContent = userFlags[currentQuestionIndex] ? 'Hapus Tanda' : 'Ragu-ragu';
+        }
+
+        function updateQuestionPanel() {
+            questionPanel.innerHTML = '';
+            if (!examQuestions || examQuestions.length === 0) return;
+            for (let i = 0; i < examQuestions.length; i++) {
+                const item = document.createElement('div');
+                item.className = 'question-panel-item';
+                item.textContent = i + 1;
+                
+                if (isReviewMode) {
+                    const isCorrect = userAnswers[i] === examQuestions[i].a;
+                    item.classList.add(isCorrect ? 'correct-review' : 'incorrect-review');
+                } else {
+                    if (i === currentQuestionIndex) item.classList.add('current');
+                    else if (userFlags[i]) item.classList.add('flagged');
+                    else if (userAnswers[i] !== null) item.classList.add('answered');
+                }
+
+                item.onclick = () => displayQuestion(i);
+                questionPanel.appendChild(item);
+            }
+        }
+        
+        function checkExamCompletionStatus() {
+            if (!userAnswers || userAnswers.length === 0) {
+                finishExamTopButton.disabled = true;
+                return;
+            }
+            const allAnswered = userAnswers.every(answer => answer !== null);
+            const noFlags = userFlags.every(flag => flag === false);
+            finishExamTopButton.disabled = !(allAnswered && noFlags);
+        }
+
+        function startTimer() {
+            const DURATION_SECONDS = 60 * 40; // 40 menit
+            remainingTime = DURATION_SECONDS;
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                const minutes = Math.floor(remainingTime / 60);
+                const seconds = remainingTime % 60;
+                timerDisplay.textContent = `Waktu: ${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+                
+                if (remainingTime <= 0) {
+                    clearInterval(timerInterval);
+                    finishExam();
+                }
+                remainingTime--;
+            }, 1000);
+        }
+
+        function finishExam() {
+            saveCanvasState(currentQuestionIndex);
+            clearInterval(timerInterval);
+            
+            let score = 0;
+            examQuestions.forEach((q, i) => {
+                if (userAnswers[i] === q.a) {
+                    score += (100 / examQuestions.length);
+                }
+            });
+
+            score = Math.round(score);
+
+            saveProgress(currentQuizTopic, currentDifficulty, score, examQuestions, userAnswers, scratchpadData);
+            switchPage(resultPage);
+            showResults(score);
+        }
+
+        function showResults(score) {
+            const name = document.getElementById('nama-siswa').value;
+            const className = document.getElementById('kelas-siswa').value;
+            
+            document.getElementById('result-name').textContent = name;
+            document.getElementById('result-class').textContent = className;
+            document.getElementById('result-topic').textContent = currentQuizTopic;
+            document.getElementById('result-difficulty').textContent = currentDifficulty;
+            document.getElementById('final-score').textContent = score;
+
+            let medalImage = '';
+            let motivationText = '';
+            const keteranganBox = document.getElementById('keterangan-box');
+
+            if (score >= 90) {
+                medalImage = 'https://cdn-icons-png.flaticon.com/512/2583/2583344.png'; // Gold
+                motivationText = 'Luar biasa! Kamu benar-benar menguasai materi ini.';
+                createConfetti();
+            } else if (score >= 70) {
+                medalImage = 'https://cdn-icons-png.flaticon.com/512/2583/2583319.png'; // Silver
+                motivationText = 'Kerja bagus! Sedikit lagi menuju kesempurnaan. Terus berlatih!';
+            } else {
+                medalImage = 'https://cdn-icons-png.flaticon.com/512/2583/2583434.png'; // Bronze
+                motivationText = 'Jangan menyerah! Setiap usaha adalah langkah maju. Ayo pelajari lagi.';
+            }
+
+            keteranganBox.innerHTML = `
+                <img src="${medalImage}" alt="Medali" class="mx-auto w-24 h-24 mb-2">
+                <h2 class="text-2xl font-bold">Keterangan</h2>
+                <p class="text-lg mt-2">${motivationText}</p>
+            `;
+            renderMath();
+        }
+
+        // --- FUNGSI CANVAS ---
+        function setupCanvas(canvas, context) {
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+            context.lineWidth = 3;
+            context.lineCap = 'round';
+            context.strokeStyle = '#000000';
+        }
+        
+        function getPos(canvas, e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return {
+                x: (clientX - rect.left) * (canvas.width / rect.width),
+                y: (clientY - rect.top) * (canvas.height / rect.height)
+            };
+        }
+
+        function startDrawing(e) { e.preventDefault(); drawing = true; const pos = getPos(scratchpadCanvas, e); [lastX, lastY] = [pos.x, pos.y]; }
+        function stopDrawing(e) { e.preventDefault(); if (!drawing) return; drawing = false; saveCanvasState(currentQuestionIndex); }
+        function draw(e) {
+            e.preventDefault();
+            if (!drawing || isReviewMode) return;
+            const pos = getPos(scratchpadCanvas, e);
+            ctx.beginPath();
+            ctx.moveTo(lastX, lastY);
+            if (currentTool === 'pen') {
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.strokeStyle = '#000000';
+                ctx.lineWidth = 3;
+            } else {
+                ctx.globalCompositeOperation = 'destination-out';
+                ctx.lineWidth = eraserSizeSlider.value;
+            }
+            ctx.lineTo(pos.x, pos.y);
+            ctx.stroke();
+            [lastX, lastY] = [pos.x, pos.y];
+        }
+
+        function saveCanvasState(index) { if (index >= 0) scratchpadData[index] = scratchpadCanvas.toDataURL(); }
+        function loadCanvasState(index) {
+            ctx.clearRect(0, 0, scratchpadCanvas.width, scratchpadCanvas.height);
+            if (scratchpadData[index]) {
+                const img = new Image();
+                img.onload = () => {
+                    ctx.globalCompositeOperation = 'source-over';
+                    ctx.drawImage(img, 0, 0, scratchpadCanvas.width, scratchpadCanvas.height);
+                };
+                img.src = scratchpadData[index];
+            }
+        }
+        function clearCanvas() { 
+            if(isReviewMode) return;
+            ctx.clearRect(0, 0, scratchpadCanvas.width, scratchpadCanvas.height); 
+            saveCanvasState(currentQuestionIndex);
+        }
+        function setTool(tool) {
+            currentTool = tool;
+            penToolButton.classList.toggle('active', tool === 'pen');
+            eraserToolButton.classList.toggle('active', tool === 'eraser');
+        }
+        function updateTracker(e) {
+            const rect = scratchpadCanvas.getBoundingClientRect();
+            mouseTracker.style.display = 'block';
+            mouseTracker.style.left = `${e.clientX - rect.left}px`;
+            mouseTracker.style.top = `${e.clientY - rect.top}px`;
+            const size = (currentTool === 'eraser') ? eraserSizeSlider.value : 6;
+            mouseTracker.style.width = `${size}px`;
+            mouseTracker.style.height = `${size}px`;
+        }
+        
+        // --- FUNGSI EFEK & UTILITAS ---
+        function createConfetti() {
+            const container = document.getElementById('confetti-container');
+            container.innerHTML = '';
+            const colors = ['#f44336', '#2196f3', '#4caf50', '#ffeb3b', '#ff9800'];
+            for (let i = 0; i < 100; i++) {
+                const confetti = document.createElement('div');
+                confetti.className = 'confetti';
+                confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                confetti.style.left = Math.random() * 100 + 'vw';
+                confetti.style.animationDelay = Math.random() * 2 + 's';
+                confetti.style.animationDuration = Math.random() * 3 + 3 + 's';
+                container.appendChild(confetti);
+            }
+            setTimeout(() => { container.innerHTML = ''; }, 6000);
+        }
+
+        function showCustomModal(message) {
+            const modalMessage = document.getElementById('modal-message');
+            modalMessage.textContent = message;
+            modalConfirmButton.style.display = 'inline-block';
+            modalCancelButton.textContent = 'Batal';
+            confirmModal.style.display = 'flex';
+        }
+
+        // --- FUNGSI PROGRESS & PEMILIHAN KUIS ---
+        function loadProgress() {
+            const savedProgress = localStorage.getItem(QUIZ_PROGRESS_KEY);
+            quizProgress = savedProgress ? JSON.parse(savedProgress) : {};
+        }
+        
+        function saveProgress(topic, difficulty, score, questions, userAnswers, scratchpad) {
+            if (!quizProgress[topic]) {
+                quizProgress[topic] = {};
+            }
+            quizProgress[topic][difficulty] = { completed: true, score, questions, userAnswers, scratchpadData: scratchpad };
+            localStorage.setItem(QUIZ_PROGRESS_KEY, JSON.stringify(quizProgress));
+        }
+        
+        function showQuizSelectionPage() {
+            switchPage(quizSelectionPage);
+            const quizListContainer = document.getElementById('quiz-list');
+            quizListContainer.innerHTML = '';
+
+            const quizTopics = {
+                barisanAritmatika: { displayName: 'Barisan Aritmatika' },
+                deretAritmatika: { displayName: 'Deret Aritmatika' },
+                barisanGeometri: { displayName: 'Barisan Geometri' },
+                deretGeometri: { displayName: 'Deret Geometri' },
+            };
+
+            Object.keys(quizTopics).forEach(key => {
+                bankSoal[key].displayName = quizTopics[key].displayName;
+            });
+
+            Object.values(quizTopics).forEach(topicInfo => {
+                const topic = topicInfo.displayName;
+                const card = document.createElement('div');
+                card.className = 'quiz-card card p-6 text-center transition-colors duration-300';
+                
+                const progress = quizProgress[topic] || {};
+                const sedangDone = progress['Sedang']?.completed;
+                const sulitDone = progress['Sulit']?.completed;
+                let completedCount = 0;
+                if (sedangDone) completedCount++;
+                if (sulitDone) completedCount++;
+                
+                if (completedCount === 2) {
+                    card.classList.add('completed', 'bg-green-100', 'border-2', 'border-green-400');
+                } else {
+                    card.classList.add('bg-blue-100', 'hover:bg-blue-200');
+                }
+
+                card.innerHTML = `
+                    <h2 class="text-xl font-bold mb-2">${topic}</h2>
+                    <p class="text-gray-500 mb-4 quiz-card-subtitle">Selesaikan kuis ini</p>
+                    <div class="font-semibold text-lg ${completedCount > 0 ? 'text-blue-600' : 'text-gray-400'}">${completedCount}/2 Selesai</div>
+                    <div class="check-mark">&#10004;</div>
+                `;
+                card.onclick = () => showDifficultyModal(topic);
+                quizListContainer.appendChild(card);
+            });
+        }
+        
+        function showDifficultyModal(topic) {
+            currentQuizTopic = topic;
+            difficultyQuizTitle.textContent = `Anda memilih kuis: ${topic}`;
+            difficultyOptionsContainer.innerHTML = '';
+            
+            const progress = quizProgress[topic] || {};
+            const difficulties = ['Sedang', 'Sulit'];
+
+            difficulties.forEach(level => {
+                const btn = document.createElement('button');
+                btn.className = 'nav-button w-full';
+                const isCompleted = progress[level]?.completed;
+
+                if (isCompleted) {
+                    // Opsi untuk Ulangi atau Tinjau
+                    const retakeBtn = document.createElement('button');
+                    retakeBtn.className = 'nav-button w-full bg-yellow-500 hover:bg-yellow-600';
+                    retakeBtn.textContent = `Ulangi Tingkat ${level}`;
+                    retakeBtn.onclick = () => { difficultyModal.style.display = 'none'; startNewQuiz(topic, level); };
+
+                    const reviewBtn = document.createElement('button');
+                    reviewBtn.className = 'nav-button w-full bg-green-500 hover:bg-green-600';
+                    reviewBtn.textContent = `Tinjau Tingkat ${level}`;
+                    reviewBtn.onclick = () => { difficultyModal.style.display = 'none'; startReviewMode(topic, level); };
+                    
+                    difficultyOptionsContainer.appendChild(reviewBtn);
+                    difficultyOptionsContainer.appendChild(retakeBtn);
+
+                } else {
+                    // Opsi untuk memulai kuis
+                    btn.textContent = level;
+                    if(level === 'Sulit') btn.classList.add('bg-red-600', 'hover:bg-red-700');
+                    btn.onclick = () => { difficultyModal.style.display = 'none'; startNewQuiz(topic, level); };
+                    difficultyOptionsContainer.appendChild(btn);
+                }
+            });
+
+            difficultyModal.style.display = 'flex';
+        }
+
+        // --- THEME & DRAGGABLE BUTTON ---
+        function applyTheme(theme) {
+            document.body.classList.toggle('dark-theme', theme === 'dark');
+            localStorage.setItem('quizTheme', theme);
+            currentTheme = theme;
+            themeSwitchLogin.checked = theme === 'dark';
+        }
+
+        function toggleTheme() {
+            applyTheme(currentTheme === 'light' ? 'dark' : 'light');
+        }
+
+        let isDragging = false, dragStartX, dragStartY, btnStartX, btnStartY;
+        function startDrag(e) {
+            const event = e.type.includes('mouse') ? e : e.touches[0];
+            dragStartX = event.clientX;
+            dragStartY = event.clientY;
+            
+            themeToggleFloating.dataset.dragged = "false";
+            isDragging = true;
+            btnStartX = themeToggleFloating.offsetLeft;
+            btnStartY = themeToggleFloating.offsetTop;
+            themeToggleFloating.style.cursor = 'grabbing';
+            window.addEventListener('mousemove', drag);
+            window.addEventListener('touchmove', drag, { passive: false });
+            window.addEventListener('mouseup', stopDrag);
+            window.addEventListener('touchend', stopDrag);
+        }
+        function drag(e) {
+            if (!isDragging) return;
+            e.preventDefault();
+            themeToggleFloating.dataset.dragged = "true";
+
+            const event = e.type.includes('mouse') ? e : e.touches[0];
+            const currentX = event.clientX;
+            const currentY = event.clientY;
+            let newY = btnStartY + (currentY - dragStartY);
+            let newX = btnStartX + (currentX - dragStartX);
+            
+            if (newY < 20) newY = 20;
+            if (newY > window.innerHeight - themeToggleFloating.offsetHeight - 20) {
+                newY = window.innerHeight - themeToggleFloating.offsetHeight - 20;
+            }
+            themeToggleFloating.style.top = `${newY}px`;
+            themeToggleFloating.style.left = `${newX}px`;
+        }
+        function stopDrag() {
+            if (!isDragging) return;
+            isDragging = false;
+            themeToggleFloating.style.cursor = 'grab';
+            const screenCenter = window.innerWidth / 2;
+            const finalLeft = themeToggleFloating.getBoundingClientRect().left + (themeToggleFloating.offsetWidth / 2);
+            if (finalLeft < screenCenter) {
+                themeToggleFloating.style.left = '20px';
+            } else {
+                themeToggleFloating.style.left = `${window.innerWidth - themeToggleFloating.offsetWidth - 20}px`;
+            }
+            window.removeEventListener('mousemove', drag);
+            window.removeEventListener('touchmove', drag);
+            window.removeEventListener('mouseup', stopDrag);
+            window.removeEventListener('touchend', stopDrag);
+        }
+
+        // --- EVENT LISTENERS ---
+        loginButton.addEventListener('click', () => {
+            if (document.getElementById('nama-siswa').value.trim() === '' || document.getElementById('kelas-siswa').value === '') {
+                alert('Nama dan Kelas tidak boleh kosong!'); return;
+            }
+            loadProgress(); showQuizSelectionPage();
+        });
+
+        difficultyCancelButton.onclick = () => { difficultyModal.style.display = 'none'; };
+        nextButton.addEventListener('click', () => { if (currentQuestionIndex < examQuestions.length - 1) displayQuestion(currentQuestionIndex + 1); });
+        prevButton.addEventListener('click', () => { if (currentQuestionIndex > 0) displayQuestion(currentQuestionIndex - 1); });
+        flagButton.addEventListener('click', () => { 
+            userFlags[currentQuestionIndex] = !userFlags[currentQuestionIndex]; 
+            updateQuestionPanel(); updateActionButtons(); checkExamCompletionStatus();
+        });
+        backToSelectionButton.addEventListener('click', showQuizSelectionPage);
+        modalCancelButton.addEventListener('click', () => confirmModal.style.display = 'none');
+        modalConfirmButton.addEventListener('click', () => { confirmModal.style.display = 'none'; finishExam(); });
+        penToolButton.addEventListener('click', () => setTool('pen'));
+        eraserToolButton.addEventListener('click', () => setTool('eraser'));
+        resetToolButton.addEventListener('click', clearCanvas);
+        window.addEventListener('resize', () => {
+            if(!examPage.classList.contains('hidden')) {
+                saveCanvasState(currentQuestionIndex); setupCanvas(scratchpadCanvas, ctx); loadCanvasState(currentQuestionIndex);
+            }
+        });
+        const scratchpadEvents = { start: ['mousedown', 'touchstart'], move: ['mousemove', 'touchmove'], end: ['mouseup', 'touchend'], leave: 'mouseleave' };
+        scratchpadEvents.start.forEach(evt => scratchpadCanvas.addEventListener(evt, startDrawing, { passive: false }));
+        scratchpadEvents.move.forEach(evt => scratchpadCanvas.addEventListener(evt, draw, { passive: false }));
+        scratchpadEvents.end.forEach(evt => scratchpadCanvas.addEventListener(evt, stopDrawing, { passive: false }));
+        scratchpadCanvas.addEventListener(scratchpadEvents.leave, () => { drawing = false; mouseTracker.style.display = 'none'; });
+        scratchpadCanvas.addEventListener('mouseenter', updateTracker);
+        scratchpadCanvas.addEventListener('mousemove', updateTracker);
+
+        // Theme and Drag Listeners
+        themeSwitchLogin.addEventListener('change', toggleTheme);
+        themeToggleFloating.addEventListener('click', (e) => {
+            if (themeToggleFloating.dataset.dragged === "false") {
+                toggleTheme();
+            }
+        });
+        themeToggleFloating.addEventListener('mousedown', startDrag);
+        themeToggleFloating.addEventListener('touchstart', startDrag);
+
+        // --- Inisialisasi Aplikasi ---
+        applyTheme(currentTheme);
+
+    });
+    </script>
+</body>
+</html>
+
