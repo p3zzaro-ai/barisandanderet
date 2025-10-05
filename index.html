@@ -251,6 +251,18 @@
         </div>
     </div>
 
+    <!-- Modal Lanjutkan Sesi -->
+    <div id="resume-modal" class="modal">
+        <div class="modal-content w-11/12 sm:w-1/2 md:w-1/3">
+            <h2 class="text-2xl font-bold mb-4">Sesi Ditemukan</h2>
+            <p class="mb-6 text-lg">Ditemukan sesi ujian yang belum selesai. Apakah Anda ingin melanjutkannya?</p>
+            <div class="flex justify-center space-x-4">
+                <button id="resume-new" class="bg-gray-400 text-white px-6 py-2 rounded-lg hover:bg-gray-500">Mulai Baru</button>
+                <button id="resume-confirm" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">Ya, Lanjutkan</button>
+            </div>
+        </div>
+    </div>
+
 
     <script>
     document.addEventListener('DOMContentLoaded', () => {
@@ -445,6 +457,9 @@
         const themeSwitchLogin = document.getElementById('theme-switch-login');
         const themeToggleFloating = document.getElementById('theme-toggle-floating');
         const reviewStatusEl = document.getElementById('review-status');
+        const resumeModal = document.getElementById('resume-modal');
+        const resumeConfirmBtn = document.getElementById('resume-confirm');
+        const resumeNewBtn = document.getElementById('resume-new');
 
 
         // --- STATE APLIKASI ---
@@ -461,6 +476,7 @@
         let isReviewMode = false;
 
         const QUIZ_PROGRESS_KEY = 'sequencesQuizProgress';
+        const EXAM_SESSION_KEY = 'sequencesQuizSession';
 
         // --- FUNGSI UTAMA ---
         function renderMath() {
@@ -470,7 +486,7 @@
         }
         
         function switchPage(activePage) {
-            [loginPage, quizSelectionPage, examPage, resultPage].forEach(page => {
+            [loginPage, quizSelectionPage, examPage, resultPage, resumeModal].forEach(page => {
                 if (page === activePage) {
                     page.classList.remove('hidden');
                     setTimeout(() => page.style.opacity = 1, 10);
@@ -500,7 +516,6 @@
                 questionPool = [...topicQuestions.sedang, ...topicQuestions.sulit];
             }
             
-            // Filter untuk memastikan soal unik berdasarkan teks pertanyaan 'q'
             const uniqueQuestions = questionPool.filter((question, index, self) =>
                 index === self.findIndex((q) => (
                     q.q === question.q
@@ -509,7 +524,6 @@
             
             shuffle(uniqueQuestions);
             
-            // Kembalikan 20 soal unik, atau kurang jika bank soal tidak mencukupi
             return uniqueQuestions.slice(0, 20);
         }
         
@@ -534,10 +548,10 @@
         }
 
         function startNewQuiz(topic, difficulty) {
-            // Reset state terlebih dahulu untuk memastikan tombol 'Kumpulkan' terkunci
             userAnswers = [];
             userFlags = [];
             scratchpadData = [];
+            clearExamState();
 
             setupExamForNewQuiz();
             currentQuizTopic = topic;
@@ -545,7 +559,6 @@
             const topicKey = Object.keys(bankSoal).find(key => bankSoal[key].displayName === topic);
 
             examQuestions = prepareQuizQuestions(topicKey, difficulty);
-            // Inisialisasi state berdasarkan jumlah soal yang sebenarnya
             const questionCount = examQuestions.length;
             userAnswers = Array(questionCount).fill(null);
             userFlags = Array(questionCount).fill(false);
@@ -557,8 +570,40 @@
             setupCanvas(scratchpadCanvas, ctx);
             displayQuestion(0);
             startTimer();
-            checkExamCompletionStatus(); // Panggil lagi setelah semua state direset
+            checkExamCompletionStatus(); 
+            saveExamState();
         }
+        
+        function resumeExam() {
+            const savedStateJSON = localStorage.getItem(EXAM_SESSION_KEY);
+            if (!savedStateJSON) return;
+
+            const savedState = JSON.parse(savedStateJSON);
+            
+            isReviewMode = false;
+            document.getElementById('nama-siswa').value = savedState.namaSiswa;
+            document.getElementById('kelas-siswa').value = savedState.kelasSiswa;
+            examQuestions = savedState.examQuestions;
+            userAnswers = savedState.userAnswers;
+            userFlags = savedState.userFlags;
+            scratchpadData = savedState.scratchpadData;
+            currentQuizTopic = savedState.currentQuizTopic;
+            currentDifficulty = savedState.currentDifficulty;
+            
+            document.getElementById('quiz-title-exam').textContent = `${currentQuizTopic}`;
+            document.getElementById('timer').style.display = 'block';
+            document.getElementById('exam-bottom-nav').style.display = 'flex';
+            const topButton = document.getElementById('finish-exam-top');
+            topButton.textContent = 'Kumpulkan';
+            topButton.onclick = () => showCustomModal('Apakah Anda yakin ingin menyelesaikan ujian?');
+
+            switchPage(examPage);
+            setupCanvas(scratchpadCanvas, ctx);
+            displayQuestion(savedState.currentQuestionIndex);
+            startTimer(savedState.remainingTime);
+            checkExamCompletionStatus();
+        }
+
 
         function startReviewMode(topic, difficulty) {
             setupExamForReview();
@@ -582,9 +627,9 @@
             currentQuestionIndex = index;
             const questionData = examQuestions[currentQuestionIndex];
             if (!questionData) return;
-            reviewStatusEl.textContent = ''; // Clear status on new question
+            reviewStatusEl.textContent = ''; 
 
-            document.getElementById('current-question-number').textContent = currentQuestionIndex + 1;
+            document.getElementById('current-question-number').textContent = `${index + 1} dari ${examQuestions.length}`;
             document.getElementById('question-text').innerHTML = questionData.q;
             
             optionsContainer.innerHTML = '';
@@ -632,6 +677,7 @@
             updateQuestionPanel();
             renderMath();
             loadCanvasState(currentQuestionIndex);
+            if(!isReviewMode) saveExamState();
         }
 
         function selectOption(selectedOption) {
@@ -639,6 +685,7 @@
             updateQuestionPanel();
             displayQuestion(currentQuestionIndex);
             checkExamCompletionStatus();
+            saveExamState();
         }
 
         function updateNavButtons() {
@@ -674,8 +721,8 @@
         }
         
         function checkExamCompletionStatus() {
-            if (!userAnswers || userAnswers.length === 0) {
-                finishExamTopButton.disabled = true;
+            if (isReviewMode || !userAnswers || userAnswers.length === 0) {
+                finishExamTopButton.disabled = isReviewMode ? false : true;
                 return;
             }
             const allAnswered = userAnswers.every(answer => answer !== null);
@@ -683,9 +730,8 @@
             finishExamTopButton.disabled = !(allAnswered && noFlags);
         }
 
-        function startTimer() {
-            const DURATION_SECONDS = 60 * 40; // 40 menit
-            remainingTime = DURATION_SECONDS;
+        function startTimer(startTime = 60 * 40) {
+            remainingTime = startTime;
             if (timerInterval) clearInterval(timerInterval);
             timerInterval = setInterval(() => {
                 const minutes = Math.floor(remainingTime / 60);
@@ -714,6 +760,7 @@
             score = Math.round(score);
 
             saveProgress(currentQuizTopic, currentDifficulty, score, examQuestions, userAnswers, scratchpadData);
+            clearExamState();
             switchPage(resultPage);
             showResults(score);
         }
@@ -793,7 +840,7 @@
             [lastX, lastY] = [pos.x, pos.y];
         }
 
-        function saveCanvasState(index) { if (index >= 0) scratchpadData[index] = scratchpadCanvas.toDataURL(); }
+        function saveCanvasState(index) { if (index >= 0 && !isReviewMode) scratchpadData[index] = scratchpadCanvas.toDataURL(); }
         function loadCanvasState(index) {
             ctx.clearRect(0, 0, scratchpadCanvas.width, scratchpadCanvas.height);
             if (scratchpadData[index]) {
@@ -923,7 +970,6 @@
                 const isCompleted = progress[level]?.completed;
 
                 if (isCompleted) {
-                    // Opsi untuk Ulangi atau Tinjau
                     const retakeBtn = document.createElement('button');
                     retakeBtn.className = 'nav-button w-full bg-yellow-500 hover:bg-yellow-600';
                     retakeBtn.textContent = `Ulangi Tingkat ${level}`;
@@ -938,7 +984,6 @@
                     difficultyOptionsContainer.appendChild(retakeBtn);
 
                 } else {
-                    // Opsi untuk memulai kuis
                     btn.textContent = level;
                     if(level === 'Sulit') btn.classList.add('bg-red-600', 'hover:bg-red-700');
                     btn.onclick = () => { difficultyModal.style.display = 'none'; startNewQuiz(topic, level); };
@@ -1012,6 +1057,28 @@
             window.removeEventListener('touchend', stopDrag);
         }
 
+        // --- SESSION MANAGEMENT ---
+        function saveExamState() {
+            if (isReviewMode || examPage.classList.contains('hidden')) return;
+            const state = {
+                namaSiswa: document.getElementById('nama-siswa').value,
+                kelasSiswa: document.getElementById('kelas-siswa').value,
+                examQuestions, userAnswers, userFlags, scratchpadData,
+                currentQuestionIndex, remainingTime, currentQuizTopic, currentDifficulty
+            };
+            localStorage.setItem(EXAM_SESSION_KEY, JSON.stringify(state));
+        }
+
+        function clearExamState() {
+            localStorage.removeItem(EXAM_SESSION_KEY);
+        }
+
+        function checkForSavedState() {
+            if (localStorage.getItem(EXAM_SESSION_KEY)) {
+                resumeModal.style.display = 'flex';
+            }
+        }
+
         // --- EVENT LISTENERS ---
         loginButton.addEventListener('click', () => {
             if (document.getElementById('nama-siswa').value.trim() === '' || document.getElementById('kelas-siswa').value === '') {
@@ -1026,6 +1093,7 @@
         flagButton.addEventListener('click', () => { 
             userFlags[currentQuestionIndex] = !userFlags[currentQuestionIndex]; 
             updateQuestionPanel(); updateActionButtons(); checkExamCompletionStatus();
+            saveExamState();
         });
         backToSelectionButton.addEventListener('click', showQuizSelectionPage);
         modalCancelButton.addEventListener('click', () => confirmModal.style.display = 'none');
@@ -1055,9 +1123,22 @@
         });
         themeToggleFloating.addEventListener('mousedown', startDrag);
         themeToggleFloating.addEventListener('touchstart', startDrag);
+        
+        // Session Listeners
+        resumeConfirmBtn.addEventListener('click', () => {
+            resumeModal.style.display = 'none';
+            resumeExam();
+        });
+
+        resumeNewBtn.addEventListener('click', () => {
+            resumeModal.style.display = 'none';
+            clearExamState();
+        });
+
 
         // --- Inisialisasi Aplikasi ---
         applyTheme(currentTheme);
+        checkForSavedState();
 
     });
     </script>
