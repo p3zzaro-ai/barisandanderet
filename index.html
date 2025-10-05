@@ -146,6 +146,10 @@
         <!-- Halaman Pemilihan Kuis -->
         <div id="quiz-selection-page" class="page hidden w-full max-w-xl mx-auto">
              <div class="card p-6 md:p-8">
+                <div id="user-info-header" class="flex justify-between items-center mb-6 border-b pb-4">
+                    <span id="display-nama-siswa" class="font-bold text-lg"></span>
+                    <span id="display-kelas-siswa" class="text-gray-500"></span>
+                </div>
                 <h1 class="text-3xl font-bold mb-2 text-center">Pilih Kuis</h1>
                 <p class="text-gray-600 mb-8 text-center">Pilih materi yang ingin Anda kerjakan.</p>
                 <div id="quiz-list" class="grid grid-cols-1 gap-4">
@@ -477,6 +481,7 @@
 
         const QUIZ_PROGRESS_KEY = 'sequencesQuizProgress';
         const EXAM_SESSION_KEY = 'sequencesQuizSession';
+        const USER_SESSION_KEY = 'sequencesUserSession';
 
         // --- FUNGSI UTAMA ---
         function renderMath() {
@@ -533,7 +538,7 @@
             document.getElementById('exam-bottom-nav').style.display = 'flex';
             const topButton = document.getElementById('finish-exam-top');
             topButton.textContent = 'Kumpulkan';
-            topButton.onclick = () => showCustomModal('Apakah Anda yakin ingin menyelesaikan ujian?');
+            topButton.onclick = () => showCustomModal('Apakah Anda yakin ingin menyelesaikan ujian?', true, finishExam);
             checkExamCompletionStatus();
         }
 
@@ -595,7 +600,7 @@
             document.getElementById('exam-bottom-nav').style.display = 'flex';
             const topButton = document.getElementById('finish-exam-top');
             topButton.textContent = 'Kumpulkan';
-            topButton.onclick = () => showCustomModal('Apakah Anda yakin ingin menyelesaikan ujian?');
+            topButton.onclick = () => showCustomModal('Apakah Anda yakin ingin menyelesaikan ujian?', true, finishExam);
 
             switchPage(examPage);
             setupCanvas(scratchpadCanvas, ctx);
@@ -889,12 +894,23 @@
             setTimeout(() => { container.innerHTML = ''; }, 6000);
         }
 
-        function showCustomModal(message) {
-            const modalMessage = document.getElementById('modal-message');
-            modalMessage.textContent = message;
-            modalConfirmButton.style.display = 'inline-block';
-            modalCancelButton.textContent = 'Batal';
-            confirmModal.style.display = 'flex';
+        function showCustomModal(message, isConfirmation, onConfirm) {
+            const modal = document.getElementById('confirm-modal');
+            const msgEl = document.getElementById('modal-message');
+            const confirmBtn = document.getElementById('modal-confirm');
+            const cancelBtn = document.getElementById('modal-cancel');
+
+            msgEl.textContent = message;
+
+            confirmBtn.onclick = () => {
+                modal.style.display = 'none';
+                if (onConfirm) onConfirm();
+            };
+            cancelBtn.onclick = () => {
+                modal.style.display = 'none';
+            };
+            
+            modal.style.display = 'flex';
         }
 
         // --- FUNGSI PROGRESS & PEMILIHAN KUIS ---
@@ -912,6 +928,14 @@
         }
         
         function showQuizSelectionPage() {
+            const userSession = JSON.parse(localStorage.getItem(USER_SESSION_KEY));
+            if (userSession) {
+                document.getElementById('display-nama-siswa').textContent = userSession.namaSiswa;
+                document.getElementById('display-kelas-siswa').textContent = userSession.kelasSiswa;
+                document.getElementById('nama-siswa').value = userSession.namaSiswa;
+                document.getElementById('kelas-siswa').value = userSession.kelasSiswa;
+            }
+
             switchPage(quizSelectionPage);
             const quizListContainer = document.getElementById('quiz-list');
             quizListContainer.innerHTML = '';
@@ -1073,18 +1097,20 @@
             localStorage.removeItem(EXAM_SESSION_KEY);
         }
 
-        function checkForSavedState() {
-            if (localStorage.getItem(EXAM_SESSION_KEY)) {
-                resumeModal.style.display = 'flex';
-            }
-        }
-
         // --- EVENT LISTENERS ---
         loginButton.addEventListener('click', () => {
-            if (document.getElementById('nama-siswa').value.trim() === '' || document.getElementById('kelas-siswa').value === '') {
-                alert('Nama dan Kelas tidak boleh kosong!'); return;
+            const namaSiswa = document.getElementById('nama-siswa').value.trim();
+            const kelasSiswa = document.getElementById('kelas-siswa').value;
+
+            if (namaSiswa === '' || kelasSiswa === '') {
+                alert('Nama dan Kelas tidak boleh kosong!'); 
+                return;
             }
-            loadProgress(); showQuizSelectionPage();
+            const userSession = { namaSiswa, kelasSiswa };
+            localStorage.setItem(USER_SESSION_KEY, JSON.stringify(userSession));
+            clearExamState(); 
+            loadProgress(); 
+            showQuizSelectionPage();
         });
 
         difficultyCancelButton.onclick = () => { difficultyModal.style.display = 'none'; };
@@ -1096,8 +1122,7 @@
             saveExamState();
         });
         backToSelectionButton.addEventListener('click', showQuizSelectionPage);
-        modalCancelButton.addEventListener('click', () => confirmModal.style.display = 'none');
-        modalConfirmButton.addEventListener('click', () => { confirmModal.style.display = 'none'; finishExam(); });
+        
         penToolButton.addEventListener('click', () => setTool('pen'));
         eraserToolButton.addEventListener('click', () => setTool('eraser'));
         resetToolButton.addEventListener('click', clearCanvas);
@@ -1133,12 +1158,28 @@
         resumeNewBtn.addEventListener('click', () => {
             resumeModal.style.display = 'none';
             clearExamState();
+            localStorage.removeItem(USER_SESSION_KEY);
+            window.location.reload();
         });
 
 
         // --- Inisialisasi Aplikasi ---
-        applyTheme(currentTheme);
-        checkForSavedState();
+        function initializeApp() {
+            applyTheme(currentTheme);
+
+            const activeQuizSession = localStorage.getItem(EXAM_SESSION_KEY);
+            const loggedInUserSession = localStorage.getItem(USER_SESSION_KEY);
+
+            if (activeQuizSession) {
+                resumeModal.style.display = 'flex';
+            } else if (loggedInUserSession) {
+                loadProgress();
+                showQuizSelectionPage();
+            }
+            // Else, default to login page
+        }
+        
+        initializeApp();
 
     });
     </script>
